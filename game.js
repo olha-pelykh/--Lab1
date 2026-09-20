@@ -253,3 +253,7 @@ function gameInitialization(player1, player2) {
         cell.addEventListener('click', game.doPlayerTurn);
     });
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {Player, gameInitialization};
+}
