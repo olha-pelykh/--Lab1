@@ -378,3 +378,10 @@ function gameInitialization(player1, player2) {
         cell.addEventListener('click', game.doPlayerTurn);
     });
 }
+
+// ─── Test-only export ────────────────────────────────────────────────────────
+// Allows Jest to import top-level symbols.  Has zero effect in the browser
+// because the `module` global does not exist there.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Player, gameInitialization };
+}
