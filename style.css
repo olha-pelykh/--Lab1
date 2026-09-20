@@ -108,6 +108,7 @@ main p {
 
 
 main .gameboard {
+    position: relative; /* anchor for the ::after strike-through line */
     width: var(--GAMEBOARD-SIDE);
     height: var(--GAMEBOARD-SIDE);
     margin: 0 auto;
@@ -121,6 +122,99 @@ main .gameboard {
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
 }
+
+/* ─── Winning Strike-Through Line ───────────────────────────────────────────
+   A single ::after pseudo-element is drawn on .gameboard whenever the JS sets
+   a data-win-line attribute.  Each attribute value positions/rotates the line
+   to pass through exactly the three winning cells.
+
+   The gameboard inner area (excluding 20px padding on each side) is used as
+   the coordinate space.  Because we use percentage-based top/left values
+   relative to the full element, the line scales automatically with the board.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.gameboard::after {
+    content: '';
+    position: absolute;
+    /* Line dimensions */
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(60,60,60,0.15) 0%, rgba(40,40,40,0.85) 50%, rgba(60,60,60,0.15) 100%);
+    /* Hidden by default; shown only when a win line key is present */
+    display: none;
+    /* Smooth entrance */
+    animation: winLineGrow 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform-origin: left center;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Show the line whenever a win is detected */
+.gameboard[data-win-line]::after {
+    display: block;
+}
+
+/* ── Rows ── */
+.gameboard[data-win-line="row-0"]::after {
+    top: 16.5%;  left: 4%;  width: 92%;
+    transform: translateY(-50%);
+}
+.gameboard[data-win-line="row-1"]::after {
+    top: 49.5%;  left: 4%;  width: 92%;
+    transform: translateY(-50%);
+}
+.gameboard[data-win-line="row-2"]::after {
+    top: 82.5%;  left: 4%;  width: 92%;
+    transform: translateY(-50%);
+}
+
+/* ── Columns ── */
+.gameboard[data-win-line="col-0"]::after {
+    top: 4%;  left: 16.5%;  width: 92%;
+    transform: translateY(-50%) rotate(90deg);
+    transform-origin: left center;
+}
+.gameboard[data-win-line="col-1"]::after {
+    top: 4%;  left: 49.5%;  width: 92%;
+    transform: translateY(-50%) rotate(90deg);
+    transform-origin: left center;
+}
+.gameboard[data-win-line="col-2"]::after {
+    top: 4%;  left: 82.5%;  width: 92%;
+    transform: translateY(-50%) rotate(90deg);
+    transform-origin: left center;
+}
+
+/* ── Diagonals ── */
+.gameboard[data-win-line="diag-main"]::after {
+    top: 8%;  left: 8%;  width: 120%;
+    transform: rotate(45deg);
+    transform-origin: left center;
+}
+.gameboard[data-win-line="diag-anti"]::after {
+    top: 8%;  left: -20%;  width: 120%;
+    transform: rotate(135deg);
+    transform-origin: left center;
+}
+
+/* ── Line entrance animation ── */
+@keyframes winLineGrow {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0% 0 0);   }
+}
+
+/* ── Winning cell highlight ── */
+.gamecell--winner {
+    animation: winnerPulse 0.5s ease forwards;
+}
+
+@keyframes winnerPulse {
+    0%   { background-color: transparent; }
+    50%  { background-color: rgba(255, 220, 100, 0.55); }
+    100% { background-color: rgba(255, 210, 80, 0.35); }
+}
+
+
 
 .gameboard .gamecell {
     border: 2px solid black;

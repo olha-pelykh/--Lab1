@@ -96,33 +96,49 @@ function gameInitialization(player1, player2) {
         } 
     
         const checkWinner = () => {
-            const gameRows = getGameBoardRows();
-            const gameColumns = getGameBoardColumns();
-            const gameDiagonals = getGameBoardDiagonals();
-            const gameCombinations = [...gameRows, ...gameColumns, ...gameDiagonals];
-    
+            // Static lookup table: every possible winning combination with its board indices.
+            // Stored here (not outside) to keep it private to the gameBoard closure.
+            const WIN_COMBINATIONS = [
+                // Rows
+                { indices: [0, 1, 2], lineKey: 'row-0' },
+                { indices: [3, 4, 5], lineKey: 'row-1' },
+                { indices: [6, 7, 8], lineKey: 'row-2' },
+                // Columns
+                { indices: [0, 3, 6], lineKey: 'col-0' },
+                { indices: [1, 4, 7], lineKey: 'col-1' },
+                { indices: [2, 5, 8], lineKey: 'col-2' },
+                // Diagonals
+                { indices: [0, 4, 8], lineKey: 'diag-main' },
+                { indices: [2, 4, 6], lineKey: 'diag-anti' },
+            ];
+
             const result = {
                 hasSomeoneWon: false,
                 tie: false,
                 winnerSymbol: '',
+                winningIndices: [],  // board indices (0–8) of the three winning cells
+                winLineKey: '',      // CSS data-attribute value used to draw the strike-through
             };
-            
-            //Checks if there is a winner
-            for (let i = 0; i < gameCombinations.length; i++) {
-                const localRes = areItemsOfArrayEqual(gameCombinations[i]);
+
+            // Check every winning combination against the current board state
+            for (const combo of WIN_COMBINATIONS) {
+                const cells = combo.indices.map(i => gameBoardArray[i]);
+                const localRes = areItemsOfArrayEqual(cells);
                 if (localRes.areItemsEqual) {
                     result.hasSomeoneWon = true;
                     result.winnerSymbol = localRes.winnerSymbol;
+                    result.winningIndices = combo.indices;
+                    result.winLineKey = combo.lineKey;
                     return result;
-                };
+                }
             }
-    
-            //Checks tie
+
+            // Tie: no nulls remain but no one won
             if (!gameBoardArray.includes(null)) {
                 result.tie = true;
                 return result;
             }
-    
+
             return result;
         }
     
@@ -157,7 +173,14 @@ function gameInitialization(player1, player2) {
         }
     
         const cleanGameboard = () => {
-            gameCells.forEach(cell => {cell.textContent = ''})
+            gameCells.forEach(cell => {
+                cell.textContent = '';
+                // Remove any winning-cell highlight applied in a previous round
+                cell.classList.remove('gamecell--winner');
+            });
+            // Clear the CSS strike-through line from the gameboard element
+            const gameboard = document.querySelector('.gameboard');
+            if (gameboard) gameboard.removeAttribute('data-win-line');
         }
 
         /**
@@ -203,7 +226,59 @@ function gameInitialization(player1, player2) {
             scoreEl.textContent = player.getScore();
         };
     
-        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, cleanGameboard, initScoreboard, updateScore};
+        /**
+         * Highlights the three cells that formed the winning combination and
+         * draws a CSS strike-through line over the gameboard.
+         *
+         * @param {number[]} indices  - Board indices (0–8) of the winning cells.
+         * @param {string}   lineKey  - Data-attribute value that drives the CSS line.
+         *
+         * Validation rules:
+         *   • indices must be a non-empty array
+         *   • every index must be an integer in the range [0, 8]
+         * Missing DOM elements are handled gracefully — no runtime errors are thrown.
+         */
+        const highlightWinningCells = (indices, lineKey) => {
+            // --- Input validation ---
+            if (!Array.isArray(indices) || indices.length === 0) {
+                console.warn('highlightWinningCells: indices must be a non-empty array.');
+                return;
+            }
+            const isValidIndex = (idx) => Number.isInteger(idx) && idx >= 0 && idx <= 8;
+            if (!indices.every(isValidIndex)) {
+                console.warn('highlightWinningCells: all indices must be integers between 0 and 8.', indices);
+                return;
+            }
+
+            // --- Apply winner class to each winning cell ---
+            try {
+                indices.forEach(idx => {
+                    // gameCells is a NodeList keyed by DOM order which matches data-position
+                    const cell = document.querySelector(`.gamecell[data-position="${idx}"]`);
+                    if (!cell) {
+                        console.warn(`highlightWinningCells: cell with data-position="${idx}" not found.`);
+                        return;
+                    }
+                    cell.classList.add('gamecell--winner');
+                });
+            } catch (err) {
+                console.warn('highlightWinningCells: unexpected error while adding winner class.', err);
+            }
+
+            // --- Set data-win-line on the gameboard to trigger the CSS strike line ---
+            try {
+                const gameboard = document.querySelector('.gameboard');
+                if (!gameboard) {
+                    console.warn('highlightWinningCells: .gameboard element not found; line will not be drawn.');
+                    return;
+                }
+                gameboard.setAttribute('data-win-line', lineKey);
+            } catch (err) {
+                console.warn('highlightWinningCells: unexpected error while setting win-line attribute.', err);
+            }
+        };
+
+        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, cleanGameboard, initScoreboard, updateScore, highlightWinningCells};
         
     })();
     
@@ -246,6 +321,9 @@ function gameInitialization(player1, player2) {
             if (winnerObj.hasSomeoneWon) {
                 const winnerPlayer = parseSymbolToPlayer(winnerObj.winnerSymbol, player1, player2);
                 const message = `${winnerPlayer.getName()} Wins!`;
+
+                // Draw the visual strike-through before showing the dialog
+                displayController.highlightWinningCells(winnerObj.winningIndices, winnerObj.winLineKey);
                 displayController.showResultDialog(message);
 
                 // Increment the winner's score and reflect the change in the UI.
