@@ -7,7 +7,14 @@ const namesDialogButton = namesDialog.querySelector('button');
 const Player = (name, symbol) => {
     const getSymbol = () => symbol;
     const getName = () => name;
-    return {getSymbol, getName};
+
+    // Private score counter — not exposed as a raw property,
+    // so external code cannot mutate it directly.
+    let score = 0;
+    const getScore = () => score;
+    const incrementScore = () => { score += 1; };
+
+    return {getSymbol, getName, getScore, incrementScore};
 }
 
 //Inicialization of Players
@@ -27,6 +34,9 @@ namesDialogButton.addEventListener('click', (event) => {
 
 //Game Initialization after player names being chosen
 function gameInitialization(player1, player2) {
+    // Populate the scoreboard name labels as soon as player objects exist.
+    // This call is placed here (before the IIFEs) so displayController can
+    // reference it once it is ready inside gameInitialization's scope.
     const gameBoard = (() => {
         let gameBoardArray = [null, null, null, null, null, null, null, null, null];
     
@@ -149,11 +159,57 @@ function gameInitialization(player1, player2) {
         const cleanGameboard = () => {
             gameCells.forEach(cell => {cell.textContent = ''})
         }
+
+        /**
+         * Writes each player's name into their score card.
+         * Called once after player objects are created.
+         * Emits console.warn (instead of throwing) when a score card is absent,
+         * so missing DOM elements never crash the rest of the game.
+         */
+        const initScoreboard = (player1, player2) => {
+            const cards = [
+                { id: 'score-player1', player: player1 },
+                { id: 'score-player2', player: player2 },
+            ];
+
+            cards.forEach(({ id, player }) => {
+                const card = document.getElementById(id);
+                if (!card) {
+                    console.warn(`Score card element #${id} not found in the DOM. Score display skipped.`);
+                    return;
+                }
+                // Write the player's chosen name into the label
+                const nameEl = card.querySelector('.score-name');
+                if (nameEl) nameEl.textContent = player.getName();
+            });
+        };
+
+        /**
+         * Reads the current score from a player object and updates the DOM.
+         * @param {Object} player  - Player factory object with getScore().
+         * @param {string} cardId  - ID of the score-card element to update.
+         */
+        const updateScore = (player, cardId) => {
+            const card = document.getElementById(cardId);
+            if (!card) {
+                console.warn(`Score card element #${cardId} not found. Score update skipped.`);
+                return;
+            }
+            const scoreEl = card.querySelector('.score-value');
+            if (!scoreEl) {
+                console.warn(`'.score-value' element not found inside #${cardId}. Score update skipped.`);
+                return;
+            }
+            scoreEl.textContent = player.getScore();
+        };
     
-        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, cleanGameboard};
+        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, cleanGameboard, initScoreboard, updateScore};
         
     })();
     
+    // Initialise the scoreboard labels with player names once displayController is ready.
+    displayController.initScoreboard(player1, player2);
+
     const game = ((firstPlayer, secondPlayer) => {
         let currentPlayer = firstPlayer;
         let gameEnded = false;
@@ -191,11 +247,19 @@ function gameInitialization(player1, player2) {
                 const winnerPlayer = parseSymbolToPlayer(winnerObj.winnerSymbol, player1, player2);
                 const message = `${winnerPlayer.getName()} Wins!`;
                 displayController.showResultDialog(message);
+
+                // Increment the winner's score and reflect the change in the UI.
+                // The score-card ID matches the order in which players were created.
+                winnerPlayer.incrementScore();
+                const winnerId = winnerPlayer === player1 ? 'score-player1' : 'score-player2';
+                displayController.updateScore(winnerPlayer, winnerId);
+
                 res.gameEnded = true;
             }
             else if (winnerObj.tie) {
                 const message = `It's a Tie`;
                 displayController.showResultDialog(message);
+                // Ties do not award a point to either player.
                 res.gameEnded = true;
             }
     
