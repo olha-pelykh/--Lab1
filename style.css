@@ -64,6 +64,20 @@ main p {
     font-size: var(--TURN-MSG-FS);
 }
 
+main .scoreboard {
+    width: var(--GAMEBOARD-SIDE);
+    margin: 0 auto 20px;
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+}
+
+main .scoreboard p {
+    margin-bottom: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
 main .gameboard {
     width: var(--GAMEBOARD-SIDE);
     height: var(--GAMEBOARD-SIDE);

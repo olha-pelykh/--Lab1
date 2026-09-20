@@ -5,9 +5,17 @@ const namesDialog = document.querySelector('.names-dialog');
 const namesDialogButton = namesDialog.querySelector('button');
 
 const Player = (name, symbol) => {
+    let score = 0;
+
     const getSymbol = () => symbol;
     const getName = () => name;
-    return {getSymbol, getName};
+    const getScore = () => score;
+    const increaseScore = () => {
+        score += 1;
+    };
+
+    // Expose only controlled operations so the score cannot be mutated externally.
+    return Object.freeze({getSymbol, getName, getScore, increaseScore});
 }
 
 //Inicialization of Players
@@ -125,6 +133,8 @@ function gameInitialization(player1, player2) {
         const playerTurnTitle = document.querySelector('main p');
         const winnerDialog = document.querySelector('.result-dialog');
         const winnerDialogMessage = winnerDialog.querySelector('h1');
+        const player1Score = document.querySelector('[data-score="player1"]');
+        const player2Score = document.querySelector('[data-score="player2"]');
     
         // Close dialog when click outside form
         winnerDialog.addEventListener('click', (event) => {
@@ -145,12 +155,22 @@ function gameInitialization(player1, player2) {
             winnerDialogMessage.textContent = message;
             winnerDialog.showModal();
         }
+
+        const updateScore = (firstPlayer, secondPlayer) => {
+            if (!player1Score || !player2Score) {
+                console.warn('Score containers are missing from the page.');
+                return;
+            }
+
+            player1Score.textContent = `${firstPlayer.getName()}: ${firstPlayer.getScore()}`;
+            player2Score.textContent = `${secondPlayer.getName()}: ${secondPlayer.getScore()}`;
+        }
     
         const cleanGameboard = () => {
             gameCells.forEach(cell => {cell.textContent = ''})
         }
     
-        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, cleanGameboard};
+        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, updateScore, cleanGameboard};
         
     })();
     
@@ -160,6 +180,7 @@ function gameInitialization(player1, player2) {
     
         //Initialization of PlayerTurnTitle
         displayController.changePlayerTurnTitle(`${currentPlayer.getName()}'s Turn`);
+        displayController.updateScore(firstPlayer, secondPlayer);
     
     
         const makePlayerMove = (cell, player) => {
@@ -189,6 +210,8 @@ function gameInitialization(player1, player2) {
             const winnerObj = gameBoard.checkWinner();
             if (winnerObj.hasSomeoneWon) {
                 const winnerPlayer = parseSymbolToPlayer(winnerObj.winnerSymbol, player1, player2);
+                winnerPlayer.increaseScore();
+                displayController.updateScore(player1, player2);
                 const message = `${winnerPlayer.getName()} Wins!`;
                 displayController.showResultDialog(message);
                 res.gameEnded = true;
