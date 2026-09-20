@@ -46,73 +46,32 @@ function gameInitialization(player1, player2) {
             gameBoardArray = [null, null, null, null, null, null, null, null, null];
         }
     
-        const getGameBoardRows = () => {
-            const copyGameArray = [...gameBoardArray];
-            const res = [];
-            for (let i = 0; i < gameBoardArray.length / 3; i++) {
-                res.push(copyGameArray.splice(0, 3));
-            }
-            return res;
-        }
-    
-        const getGameBoardColumns = () => {
-            const copyGameArray = [...gameBoardArray];
-            const res = [[],[],[]];
-            for (let i = 0; i < gameBoardArray.length; i++) {
-                if (i % 3 === 0) {
-                    res[0].push(copyGameArray[i]);
-                } else if (i % 3 === 1) {
-                    res[1].push(copyGameArray[i]);
-                } else {
-                    res[2].push(copyGameArray[i]);
-                }
-            }
-            return res;
-        }
-    
-        const getGameBoardDiagonals = () => {
-            const copyGameArray = [...gameBoardArray];
-            const diagonal1 = [copyGameArray[0], copyGameArray[4], copyGameArray[8]];
-            const diagonal2 = [copyGameArray[2], copyGameArray[4], copyGameArray[6]];
-            return [diagonal1, diagonal2];
-        }
-    
-        const areItemsOfArrayEqual = (arr) => {
-            const res = {
-                areItemsEqual: null,
-                winnerSymbol: ''
-            };
-            for (let i = 0; i < arr.length - 1; i++) {
-                if (arr[i] !== arr[i + 1] || arr[i] === null) {
-                    res.areItemsEqual = false;
-                    return res;
-                }
-            }
-            res.areItemsEqual = true;
-            res.winnerSymbol = arr[0];
-            return res;
-        } 
-    
         const checkWinner = () => {
-            const gameRows = getGameBoardRows();
-            const gameColumns = getGameBoardColumns();
-            const gameDiagonals = getGameBoardDiagonals();
-            const gameCombinations = [...gameRows, ...gameColumns, ...gameDiagonals];
+            const winningCombinations = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
     
             const result = {
                 hasSomeoneWon: false,
                 tie: false,
                 winnerSymbol: '',
+                winningIndexes: [],
             };
             
-            //Checks if there is a winner
-            for (let i = 0; i < gameCombinations.length; i++) {
-                const localRes = areItemsOfArrayEqual(gameCombinations[i]);
-                if (localRes.areItemsEqual) {
+            // Return the indexes so the display layer can highlight the exact line.
+            for (const combination of winningCombinations) {
+                const [firstIndex, secondIndex, thirdIndex] = combination;
+                const firstSymbol = gameBoardArray[firstIndex];
+                if (firstSymbol !== null
+                    && firstSymbol === gameBoardArray[secondIndex]
+                    && firstSymbol === gameBoardArray[thirdIndex]) {
                     result.hasSomeoneWon = true;
-                    result.winnerSymbol = localRes.winnerSymbol;
+                    result.winnerSymbol = firstSymbol;
+                    result.winningIndexes = combination;
                     return result;
-                };
+                }
             }
     
             //Checks tie
@@ -133,6 +92,7 @@ function gameInitialization(player1, player2) {
         const playerTurnTitle = document.querySelector('main p');
         const winnerDialog = document.querySelector('.result-dialog');
         const winnerDialogMessage = winnerDialog.querySelector('h1');
+        const gameboardElement = document.querySelector('.gameboard');
         const player1Score = document.querySelector('[data-score="player1"]');
         const player2Score = document.querySelector('[data-score="player2"]');
     
@@ -165,12 +125,45 @@ function gameInitialization(player1, player2) {
             player1Score.textContent = `${firstPlayer.getName()}: ${firstPlayer.getScore()}`;
             player2Score.textContent = `${secondPlayer.getName()}: ${secondPlayer.getScore()}`;
         }
+
+        const showWinningLine = (winningIndexes) => {
+            const validIndexes = Array.isArray(winningIndexes)
+                && winningIndexes.length > 0
+                && winningIndexes.every(index => Number.isInteger(index) && index >= 0 && index <= 8);
+
+            if (!validIndexes || !gameboardElement) {
+                if (!gameboardElement) console.warn('Gameboard element is missing from the page.');
+                return;
+            }
+
+            const missingCell = winningIndexes.some(index => !gameCells[index]);
+            if (missingCell) {
+                console.warn('A winning combination references a missing game cell.');
+                return;
+            }
+
+            const combinationClass = {
+                '0,1,2': 'winning-row-top',
+                '3,4,5': 'winning-row-middle',
+                '6,7,8': 'winning-row-bottom',
+                '0,3,6': 'winning-column-left',
+                '1,4,7': 'winning-column-middle',
+                '2,5,8': 'winning-column-right',
+                '0,4,8': 'winning-diagonal-down',
+                '2,4,6': 'winning-diagonal-up'
+            }[winningIndexes.join(',')];
+
+            if (combinationClass) gameboardElement.classList.add(combinationClass);
+        }
     
         const cleanGameboard = () => {
             gameCells.forEach(cell => {cell.textContent = ''})
+            if (gameboardElement) {
+                gameboardElement.className = 'gameboard';
+            }
         }
     
-        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, updateScore, cleanGameboard};
+        return {addPlayerSymbol, changePlayerTurnTitle, showResultDialog, updateScore, showWinningLine, cleanGameboard};
         
     })();
     
@@ -212,6 +205,7 @@ function gameInitialization(player1, player2) {
                 const winnerPlayer = parseSymbolToPlayer(winnerObj.winnerSymbol, player1, player2);
                 winnerPlayer.increaseScore();
                 displayController.updateScore(player1, player2);
+                displayController.showWinningLine(winnerObj.winningIndexes);
                 const message = `${winnerPlayer.getName()} Wins!`;
                 displayController.showResultDialog(message);
                 res.gameEnded = true;

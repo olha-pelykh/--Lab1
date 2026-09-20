@@ -79,6 +79,7 @@ main .scoreboard p {
 }
 
 main .gameboard {
+    position: relative;
     width: var(--GAMEBOARD-SIDE);
     height: var(--GAMEBOARD-SIDE);
     margin: 0 auto;
@@ -106,6 +107,48 @@ main .gameboard {
 .gameboard .gamecell:hover {
     background-color: var(--EXTRA-LIGHT-COLOR);
 }
+
+/* Draw the winning line above the cells without changing their layout. */
+.gameboard::after {
+    position: absolute;
+    z-index: 1;
+    content: '';
+    display: none;
+    background-color: #c0392b;
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+.gameboard[class*="winning-row"]::after {
+    left: 20px;
+    right: 20px;
+    height: 6px;
+}
+
+.gameboard.winning-row-top::after { top: 16.67%; display: block; }
+.gameboard.winning-row-middle::after { top: 50%; display: block; }
+.gameboard.winning-row-bottom::after { top: 83.33%; display: block; }
+
+.gameboard[class*="winning-column"]::after {
+    top: 20px;
+    bottom: 20px;
+    width: 6px;
+}
+
+.gameboard.winning-column-left::after { left: 16.67%; display: block; }
+.gameboard.winning-column-middle::after { left: 50%; display: block; }
+.gameboard.winning-column-right::after { left: 83.33%; display: block; }
+
+.gameboard[class*="winning-diagonal"]::after {
+    top: 50%;
+    left: 20px;
+    width: calc(100% - 40px);
+    height: 6px;
+    display: block;
+}
+
+.gameboard.winning-diagonal-down::after { transform: rotate(45deg); }
+.gameboard.winning-diagonal-up::after { transform: rotate(-45deg); }
 
 main button {
     display: block;
